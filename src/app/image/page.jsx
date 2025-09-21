@@ -1,10 +1,9 @@
-"use client";
+'use client';
 import { useState } from "react";
 
 export default function GenerateImagePage() {
   const [prompt, setPrompt] = useState("");
-  const [image, setImage] = useState(null);           // URL to display
-  const [imageBase64, setImageBase64] = useState(null); // ✅ store base64 for Twitter
+  const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
 
@@ -29,34 +28,12 @@ export default function GenerateImagePage() {
       );
 
       const result = await response.json();
-      console.log("HF API result:", result);
+      const imageBase64 = result?.data?.[0]?.b64_json;
+      if (!imageBase64) throw new Error("No image returned");
 
-      if (!result?.data?.[0]?.b64_json) {
-        throw new Error("No image returned. Response: " + JSON.stringify(result));
-      }
-
-      const base64 = result.data[0].b64_json;
-
-      // ✅ store base64 for later (Twitter upload)
-      setImageBase64(base64);
-
-      // Create a data URI for preview
-      const newImage = `data:image/png;base64,${base64}`;
-
-      // Upload to your backend to get a URL
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: newImage }), // ✅ send data URI to backend
-      });
-
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadData.error || "Upload failed");
-
-      const uploadedImageUrl = uploadData.url;
-
-      setImage(uploadedImageUrl); // ✅ show uploaded image
-      setHistory([{ prompt, image: uploadedImageUrl }, ...history.slice(0, 2)]);
+      const newImage = `data:image/png;base64,${imageBase64}`;
+      setImage(newImage);
+      setHistory([{ prompt, image: newImage }, ...history.slice(0, 2)]);
     } catch (err) {
       console.error("Image generation failed:", err);
       alert("Failed to generate image.");
@@ -64,24 +41,9 @@ export default function GenerateImagePage() {
     setLoading(false);
   };
 
-  // ✅ Share function: sends base64 to your /api/tweet route
-  // Example share function
-const shareOnTwitter = (prompt, imageUrl) => {
-  // Compose tweet text
-  const tweetText = `Check out this AI-generated image: ${prompt}`;
-  
-  // Intent Tweet URL (no auth required)
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(imageUrl)}`;
-  
-  // Opens Twitter in a new tab with pre-filled text + link
-  window.open(twitterUrl, "_blank");
-};
-
-  
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-pink-50">
-      {/* Background */}
+      {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse animation-delay-2000"></div>
@@ -97,9 +59,9 @@ const shareOnTwitter = (prompt, imageUrl) => {
           <p className="text-gray-600 text-lg">Transform your ideas into stunning visuals</p>
         </div>
 
-        {/* Layout */}
+        {/* Main Content */}
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 items-start">
-          {/* Prompt Side */}
+          {/* Left Side - Prompt Area */}
           <div className="space-y-6">
             <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-blue-100">
               <div className="mb-6">
@@ -142,34 +104,77 @@ const shareOnTwitter = (prompt, imageUrl) => {
                   </>
                 )}
               </button>
+
+              {/* Quick Prompts */}
+              <div className="mt-6">
+                <p className="text-xs font-semibold text-gray-500 mb-3">QUICK IDEAS</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Dreamy landscape",
+                    "Cyberpunk city",
+                    "Fantasy creature",
+                    "Abstract art"
+                  ].map((idea) => (
+                    <button
+                      key={idea}
+                      onClick={() => setPrompt(idea)}
+                      className="px-3 py-1 text-xs bg-gradient-to-r from-blue-100 to-pink-100 text-gray-700 rounded-full hover:from-blue-200 hover:to-pink-200 transition-colors duration-200"
+                    >
+                      {idea}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+
+            {/* Recent Generations */}
+            {history.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-6 border border-blue-100">
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">RECENT CREATIONS</h3>
+                <div className="space-y-3">
+                  {history.map((item, idx) => (
+                    <div key={idx} className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-pink-50 cursor-pointer transition-colors duration-200"
+                         onClick={() => {setPrompt(item.prompt); setImage(item.image)}}>
+                      <img src={item.image} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                      <p className="text-sm text-gray-600 truncate flex-1">{item.prompt}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Image Side */}
+          {/* Right Side - Image Display */}
           <div className="lg:sticky lg:top-8">
             <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-pink-100">
               {image ? (
                 <div className="space-y-4">
-                  <img src={image} alt="Generated" className="w-full rounded-2xl shadow-lg" />
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = image;
-                        link.download = 'ai-generated.png';
-                        link.click();
-                      }}
-                      className="px-4 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition-colors duration-200"
-                    >
-                      Download
-                    </button>
-                    <button
-  onClick={() => shareOnTwitter(prompt, image)}
-  className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600"
->
-  Share on Twitter
-</button>
-
+                  <div className="relative group">
+                    <img 
+                      src={image} 
+                      alt="Generated" 
+                      className="w-full rounded-2xl shadow-lg"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl flex items-end p-6">
+                      <button 
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = image;
+                          link.download = 'ai-generated.png';
+                          link.click();
+                        }}
+                        className="px-4 py-2 bg-white/90 backdrop-blur text-gray-800 rounded-xl hover:bg-white transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        <span>Download</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <span>Generated with AI</span>
+                    <span>{new Date().toLocaleTimeString()}</span>
                   </div>
                 </div>
               ) : (
@@ -191,13 +196,16 @@ const shareOnTwitter = (prompt, imageUrl) => {
           0%, 100% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
         }
+        
         .animate-gradient {
           background-size: 200% 200%;
           animation: gradient 3s ease infinite;
         }
+        
         .animation-delay-2000 {
           animation-delay: 2s;
         }
+        
         .animation-delay-4000 {
           animation-delay: 4s;
         }
