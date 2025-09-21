@@ -119,7 +119,7 @@ export default function Home() {
               Welcome {firstName}!
             </h1>
             <div className="h-1 w-24 mx-auto bg-gradient-to-r from-pink-400 via-blue-400 to-white rounded-full"></div>
-            <h2 className="text-2xl text-slate-600 font-light tracking-wide">Let's Get Started</h2>
+            <h2 className="text-2xl text-slate-600 font-light tracking-wide">Let&apos;s Get Started</h2>
           </div>
 
           {/* Action Buttons */}
